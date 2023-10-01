@@ -105,7 +105,8 @@ class MainMenuScreen : Screen {
                 modifier = Modifier.fillMaxWidth(),
                 value = vm.serialTI.value,
                 onValueChange = { vm.serialTI.value = it },
-                textStyle = MaterialTheme.typography.h4
+                textStyle = MaterialTheme.typography.h4,
+                maxLines = 1
             )
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)) {
                 EnabledTextButton("Выбор испытаний") {

@@ -1,5 +1,6 @@
 package ru.avem.stand.tests.business
 
+import ru.avem.library.polling.IDeviceController
 import ru.avem.stand.formatPoint
 import ru.avem.stand.io.DevicePoller.DD2
 import ru.avem.stand.io.DevicePoller.PAV41
@@ -11,6 +12,7 @@ import ru.avem.stand.tests.model.Field
 import ru.avem.stand.tests.model.TestRow
 import ru.avem.stand.view.composables.table.*
 import ru.avem.stand.view.composables.table.TableScheme.Companion.named
+import kotlin.concurrent.thread
 
 object WindingInsulationTest : KSPADTest(
     abbr = "ВИУ",
@@ -45,13 +47,13 @@ object WindingInsulationTest : KSPADTest(
     private val testTime = Field(id = "Tbd") bindTo table1r1.c3
 
     private val testItemVoltageMeas: Field =
-        Field(abs = true, id = "U") pollBy with(PV24) { this to model.U_TRMS } bindTo table2r1.c1
+        Field(id = "U", abs = true) pollBy with(PV24) { this to model.U_TRMS } bindTo table2r1.c1
 
-    private val testItemCurrentMeas: Field = Field(
-        k = I_RATIO_VIU * 1000.0,
-        abs = true,
-        id = "I"
-    ) pollBy with(PAV41) { this to model.I_A_REGISTER } bindTo table2r1.c2
+    private val testItemCurrentRawMeas: Field = Field(k = I_RATIO_VIU * 1000.0) {
+        testItemCurrentMeas.value = it.d
+    } pollBy with(PAV41) { this to model.I_A_REGISTER }
+
+    private val testItemCurrentMeas: Field = Field(id = "I", abs = true) bindTo table2r1.c2
 
     private val timePassed = Field(id = "T") bindTo table2r1.c3
 
@@ -59,12 +61,15 @@ object WindingInsulationTest : KSPADTest(
 
     override val stateCell = table3r1.c1
 
+    private var timeEnded = false
+
     override val fields = listOf(
         voltage,
         current,
         testTime,
 
         testItemVoltageMeas,
+        testItemCurrentRawMeas,
         testItemCurrentMeas,
 
         timePassed,
@@ -72,7 +77,7 @@ object WindingInsulationTest : KSPADTest(
         out1UFI,
     )
 
-    override val checkedDevices = listOf(PV24, PAV41)
+    override val checkedDevices = mutableListOf<IDeviceController>(PV24, PAV41)
 
     override val alertMessages =
         listOf("Подключите провод ВИУ (ХА1) к испытуемой точке, провод РЕ (ХА2) к точке относительно которой будет проходит проверка")
@@ -90,6 +95,7 @@ object WindingInsulationTest : KSPADTest(
             },
             process = {
                 if (isRunning) {
+                    timeEnded = false
                     setVoltageByUZ91()
 
                     if (isRunning) state = "Ожидание $testTime s..."
@@ -98,6 +104,7 @@ object WindingInsulationTest : KSPADTest(
                         timePassed.value = it
                         state = "Осталось ${(testTime.d - it).formatPoint()} с"
                     }
+                    timeEnded = true
                 }
             },
             finish = {
@@ -111,24 +118,27 @@ object WindingInsulationTest : KSPADTest(
         if (isRunning) UZ91.setObjectParamsRun()
         if (isRunning) UZ91.setObjectFCur(50.0)
         if (isRunning) UZ91.startObject()
-        wait(3)
+        if (isRunning) wait(3)
 
-        state = "Подъём напряжения до ${(voltage.d * .9).formatPoint()} В (90% ном) (контроль PV24) по UZ91 (грубо)"
-        regulation(
+        if (isRunning) startCheckKTR()
+
+        if (isRunning) state =
+            "Подъём напряжения до ${(voltage.d * .9).formatPoint()} В (90% ном) (контроль PV24) по UZ91 (грубо)"
+        if (isRunning) regulation(
             out1UFI,
             voltage.d * .9,
             deltaMin = 10,
-            influenceStep = .5,
-            waitSec = .1,
+            influenceStep = 1,
+            waitSec = .05,
             isNeedContinue = { isRunning && testItemCurrentMeas.d < current.d }) { testItemVoltageMeas.d }
 
-        state = "Подъём напряжения до ${voltage.d.formatPoint()} В (контроль PV24) по UZ91 (точно)"
-        regulation(
+        if (isRunning) state = "Подъём напряжения до ${voltage.d.formatPoint()} В (контроль PV24) по UZ91 (точно)"
+        if (isRunning) regulation(
             out1UFI,
             voltage.d,
             deltaMin = 0,
             deltaMax = 3,
-            influenceStep = .1,
+            influenceStep = .5,
             waitSec = .1,
             isNeedContinue = { isRunning && testItemCurrentMeas.d < current.d }) { testItemVoltageMeas.d }
 
@@ -136,6 +146,25 @@ object WindingInsulationTest : KSPADTest(
             cause = "Ток превысил заданный"
         } else if (isRunning) {
             state = "Напряжение установлено: $testItemVoltageMeas В"
+        }
+    }
+
+    private fun startCheckKTR() {
+        thread(isDaemon = true) {
+            wait(5)
+            var countCause = 0
+            while (!timeEnded) {
+                if (out1UFI.d - 50 > testItemVoltageMeas.d / 13 || out1UFI.d + 50 < testItemVoltageMeas.d / 13) {
+                    countCause++
+                } else {
+                    countCause = 0
+                }
+                if (countCause > 3) {
+                    cause = "Коэффициент трансформации не соответствует"
+                }
+
+                wait(2)
+            }
         }
     }
 }

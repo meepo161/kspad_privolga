@@ -17,6 +17,9 @@ object ProtocolManager {
 
     fun open(ids: Collection<Int>) {
         val protocols = all.filter { it.myId in ids }
+        protocols.forEach {
+            println(it.time)
+        }
 
         if (protocols.isNotEmpty()) {
             try {

@@ -222,12 +222,12 @@ class RunScreen(val tests: List<Test>) : Screen {
                 yesButton = "ОК",
                 noButton = "Отмена",
                 yesCallback = {
-                    vm.isCommandMessageDialogVisible.value = false
                     vm.test.model.isCommandMessageDialogVisible = false
+                    vm.isCommandMessageDialogVisible.value = false
                 },
                 noCallback = {
-                    vm.isCommandMessageDialogVisible.value = false
                     vm.test.model.isCommandMessageDialogVisible = false
+                    vm.isCommandMessageDialogVisible.value = false
                     vm.test.cancel()
                 },
             )

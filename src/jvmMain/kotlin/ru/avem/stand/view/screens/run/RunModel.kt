@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateOf
 import cafe.adriel.voyager.core.model.ScreenModel
 import ru.avem.stand.tests.Test
 
+
 class RunModel(tests: List<Test>) : ScreenModel {
     var isAlertMessageDialogVisible = mutableStateOf(false)
     var alertMessageTitle = mutableStateOf("")

@@ -26,7 +26,7 @@ abstract class KSPADTest(
     open val availableMotors: List<MotorType>
         get() = MotorType.all
 
-    protected open val checkedDevices: List<IDeviceController> = listOf()
+    protected open val checkedDevices: MutableList<IDeviceController> = mutableListOf()
     protected open val alertMessages: List<String> = listOf()
 
     override fun init() {
@@ -40,6 +40,8 @@ abstract class KSPADTest(
     protected open fun initVariables() {
         if (isRunning) state = "Инициализация переменных"
         if (isRunning) initVariablesBlock()
+        if (isRunning) state = "Ожидание ответа оператора"
+        if (isRunning) alertMessages.forEach { showCommandMessage("Проделайте и нажмите ОК:|$it") }
     }
 
     private var isFirstCheck = true
@@ -134,7 +136,6 @@ abstract class KSPADTest(
 
     private fun initButtonPost() {
         if (isRunning) state = "Инициализация кнопочного поста"
-        if (isRunning) alertMessages.forEach { showCommandMessage("Проделайте и нажмите ОК:|$it") }
         if (isRunning) showAlertNotification("Нажмите кнопку Пуск на КП для запуска испытания")
         if (isRunning) DD2.signalize()
     }
@@ -212,7 +213,7 @@ abstract class KSPADTest(
                 if (influence.value == oldInfluenceValue) return false
             }
 
-            wait(waitSec, isNeedContinue = isNeedContinue)
+            wait(waitSec, isNeedContinue = { isNeedContinue() && isRunning })
             block()
         }
         return true
@@ -266,7 +267,7 @@ abstract class KSPADTest(
     }
 
     protected fun AD800.off(out: Field) {
-        regulation(out, out.min, influenceStep = .5, waitSec = .05, isNeedContinue = { true }) { out.d }
+        regulation(out, out.min, influenceStep = 1, waitSec = .05, isNeedContinue = { true }) { out.d }
         stopObjectFreewheeling()
     }
 }

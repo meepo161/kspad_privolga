@@ -1,5 +1,7 @@
 package ru.avem.stand.tests.business
 
+import ru.avem.library.polling.IDeviceController
+import ru.avem.stand.af
 import ru.avem.stand.formatPoint
 import ru.avem.stand.io.DevicePoller.DD2
 import ru.avem.stand.io.DevicePoller.PAV41
@@ -10,12 +12,11 @@ import ru.avem.stand.tests.model.Field
 import ru.avem.stand.tests.model.TestRow
 import ru.avem.stand.view.composables.table.*
 import ru.avem.stand.view.composables.table.TableScheme.Companion.named
+import kotlin.concurrent.thread
+import kotlin.math.abs
 
 object TurnToTurnTest : KSPADTest(
-    abbr = "МВ",
-    tag = "MV",
-    name = "Испытание электрической прочности междувитковой изоляции обмоток",
-    tables(
+    abbr = "МВ", tag = "MV", name = "Испытание электрической прочности междувитковой изоляции обмоток", tables(
         table1(
             columns(
                 TestRow::c1 named "U до, В",
@@ -23,25 +24,22 @@ object TurnToTurnTest : KSPADTest(
                 TestRow::c3 named "Iv до, А",
                 TestRow::c4 named "Iw до, А",
             )
-        ),
-        table2(
+        ), table2(
             columns(
                 TestRow::c1 named "1.3U, В",
                 TestRow::c2 named "Iu 1.3U, А",
                 TestRow::c3 named "Iv 1.3U, А",
                 TestRow::c4 named "Iw 1.3U, А",
             )
-        ),
-        table3(
+        ), table3(
             columns(
                 TestRow::c1 named "U после, В",
                 TestRow::c2 named "Iu после, А",
                 TestRow::c3 named "Iv после, А",
                 TestRow::c4 named "Iw после, А",
-                TestRow::c5 named "ΔI, %",
+                TestRow::c5 named "макс. ΔI, %",
             )
-        ),
-        table4(
+        ), table4(
             columns(
                 TestRow::c1 named "Состояние",
             )
@@ -51,9 +49,7 @@ object TurnToTurnTest : KSPADTest(
     private var I_RATIO = 300.0 / 5.0
 
     enum class Stage {
-        BEFORE,
-        DURING,
-        AFTER
+        BEFORE, DURING, AFTER
     }
 
     private var stage = Stage.BEFORE
@@ -242,82 +238,84 @@ object TurnToTurnTest : KSPADTest(
         out1UFI,
     )
 
-    override val checkedDevices = listOf(PAV41, PC71)
+    override val checkedDevices = mutableListOf<IDeviceController>(PAV41, PC71)
 
     override val alertMessages = listOf("Подключите провода U, V, W к ОИ")
 
     init {
-        define(
-            initVariables = {
-                stage = Stage.BEFORE
-                I_RATIO = 300.0 / 5.0
-            },
-            assemblyCircuit = {
-                DD2.onTTT()
-                loadUZ91()
-            },
-            process = {
-                if (isRunning) while (rpm.d > 0) {
-                    state = "Ожидание останова"
-                    wait(1)
-                }
-                if (isRunning) initFI()
-
-                stage = Stage.BEFORE
-                if (isRunning) setVoltageByUZ91(380.0)
-                val storedOut1UFI = out1UFI.value
-                if (isRunning) selectCurrentStage({ testItemCurrentMeas.d }) { I_RATIO = it }
-                wait(3)
-
-                stage = Stage.DURING
-                if (isRunning) toMaxCurrentStage { I_RATIO = it }
-                if (isRunning) setVoltageByUZ91(380.0 * 1.3)
-                if (isRunning) selectCurrentStage({ testItemCurrentMeas.d }) { I_RATIO = it }
-                wait(60) {
-                    state = "Осталось ${(60 - it).formatPoint()} с"
-                }
-
-                stage = Stage.AFTER
-                if (isRunning) toMaxCurrentStage { I_RATIO = it }
-                if (isRunning) setVoltageByUZ91(380.0)
-                out1UFI.value = storedOut1UFI
-                if (isRunning) selectCurrentStage({ testItemCurrentMeas.d }) { I_RATIO = it }
-                wait(3)
-
-                if (isRunning) delta.value = maxOf(
-                    testItemVoltageABMeasBefore.d,
-                    testItemVoltageBCMeasBefore.d,
-                    testItemVoltageCAMeasBefore.d,
-                    testItemVoltageABMeasAfter.d,
-                    testItemVoltageBCMeasAfter.d,
-                    testItemVoltageCAMeasAfter.d
-                ) / minOf(
-                    testItemVoltageABMeasBefore.d,
-                    testItemVoltageBCMeasBefore.d,
-                    testItemVoltageCAMeasBefore.d,
-                    testItemVoltageABMeasAfter.d,
-                    testItemVoltageBCMeasAfter.d,
-                    testItemVoltageCAMeasAfter.d
-                ) * 100.0 - 100.0
-            },
-            finish = {
-                UZ91.offFreewheeling(out1UFI)
+        define(initVariables = {
+            stage = Stage.BEFORE
+            I_RATIO = 300.0 / 5.0
+        }, assemblyCircuit = {
+            DD2.onTTT()
+            loadUZ91()
+        }, process = {
+            if (isRunning) while (rpm.d > 50) {
+                state = "Ожидание останова"
+                wait(1)
             }
-        )
+            if (isRunning) initFI()
+
+            if (isRunning) {
+                thread(isDaemon = true) {
+                    if (isRunning) wait(5)
+                    var countCause = 0
+                    while (isRunning) {
+                        if (testItemCurrentMeas.d > 1.5) {
+                            if (testItemCurrentAMeas.d * 1.8 < testItemCurrentBMeas.d || testItemCurrentAMeas.d * 0.2 > testItemCurrentBMeas.d
+                                || testItemCurrentBMeas.d * 1.8 < testItemCurrentCMeas.d || testItemCurrentBMeas.d * 0.2 > testItemCurrentCMeas.d
+                                || testItemCurrentCMeas.d * 1.8 < testItemCurrentAMeas.d || testItemCurrentCMeas.d * 0.2 > testItemCurrentAMeas.d
+                            ) {
+                                countCause++
+                            } else {
+                                countCause = 0
+                            }
+                            if (countCause > 3) cause =
+                            "Асимметрия токов. A = ${testItemCurrentAMeas.d.af()}  B = ${testItemCurrentAMeas.d.af()}  C = ${testItemCurrentCMeas.d.af()}"
+                        }
+                        wait(2)
+                    }
+                }
+            }
+
+            stage = Stage.BEFORE
+            if (isRunning) setVoltageByUZ91(380.0)
+            val storedOut1UFI = out1UFI.value
+            if (isRunning) selectCurrentStage({ testItemCurrentMeas.d }) { I_RATIO = it }
+            wait(5)
+
+            stage = Stage.DURING
+            if (isRunning) toMaxCurrentStage { I_RATIO = it }
+            if (isRunning) setVoltageByUZ91(380.0 * 1.3)
+            if (isRunning) selectCurrentStage({ testItemCurrentMeas.d }) { I_RATIO = it }
+            wait(60) {
+                state = "Осталось ${(60 - it).formatPoint()} с"
+            }
+
+            stage = Stage.AFTER
+            if (isRunning) toMaxCurrentStage { I_RATIO = it }
+            if (isRunning) setVoltageByUZ91(380.0)
+            out1UFI.value = storedOut1UFI
+            if (isRunning) selectCurrentStage({ testItemCurrentMeas.d }) { I_RATIO = it }
+            wait(5)
+
+            val delta1 = abs(testItemCurrentAMeasBefore.d / testItemCurrentAMeasAfter.d * 100.0 - 100.0)
+            val delta2 = abs(testItemCurrentBMeasBefore.d / testItemCurrentBMeasAfter.d * 100.0 - 100.0)
+            val delta3 = abs(testItemCurrentCMeasBefore.d / testItemCurrentCMeasAfter.d * 100.0 - 100.0)
+            if (isRunning) delta.value = maxOf(delta1, delta2, delta3)
+        }, finish = {
+            UZ91.offFreewheeling(out1UFI)
+        })
     }
 
     private fun setVoltageByUZ91(voltage: Double) {
         state = "Выставление напряжения ${voltage.formatPoint()} В (контроль PAV41) по UZ91"
         regulation(
-            out1UFI,
-            voltage,
-            deltaMin = 1,
-            deltaMax = 3,
-            influenceStep = .5,
-            waitSec = .05
+            out1UFI, voltage, deltaMin = 1, deltaMax = 3, influenceStep = 1, waitSec = .05
         ) { testItemVoltageMeas.d }
 
-        if (isRunning) state = "Напряжение установлено: $testItemVoltageMeas В"
+        wait(5)
+        if (isRunning) state = "Напряжение установлено"
     }
 
     private fun initFI() {

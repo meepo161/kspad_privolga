@@ -162,6 +162,7 @@ abstract class Test(
     open fun onShow() {
         clear()
         result = "Не запускался"
+        initVariablesBlock()
     }
 
     fun onPass() {
@@ -183,7 +184,7 @@ abstract class Test(
     }
 
     private fun start() {
-        thread {
+        thread(isDaemon = true) {
             clear()
             init()
             process()
@@ -215,6 +216,7 @@ abstract class Test(
 
         ProtocolManager.saveField("${tag}Status" to resultForProtocol)
         model.setFinishedState()
+
     }
 
     protected open fun storeData() {

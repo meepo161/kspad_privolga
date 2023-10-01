@@ -5,6 +5,7 @@ import ru.avem.kserialpooler.adapters.utils.ModbusRegister
 import ru.avem.kserialpooler.utils.TransportException
 import ru.avem.kserialpooler.utils.TypeByteOrder
 import ru.avem.kserialpooler.utils.allocateOrderedByteBuffer
+import ru.avem.library.polling.DeviceController
 import ru.avem.library.polling.DeviceRegister
 import ru.avem.library.polling.IDeviceController
 
@@ -15,7 +16,7 @@ class AVEM7(
     override val name: String,
     override val protocolAdapter: ModbusRTUAdapter,
     override val id: Byte
-) : IDeviceController {
+) : DeviceController() {
     val model = AVEM7Model()
     override var isResponding = false
     override var requestTotalCount = 0

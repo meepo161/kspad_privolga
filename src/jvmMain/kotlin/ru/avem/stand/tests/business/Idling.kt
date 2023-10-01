@@ -1,5 +1,7 @@
 package ru.avem.stand.tests.business
 
+import ru.avem.library.polling.IDeviceController
+import ru.avem.stand.af
 import ru.avem.stand.formatPoint
 import ru.avem.stand.io.DevicePoller.DD2
 import ru.avem.stand.io.DevicePoller.PAV41
@@ -12,6 +14,7 @@ import ru.avem.stand.tests.model.Field
 import ru.avem.stand.tests.model.TestRow
 import ru.avem.stand.view.composables.table.*
 import ru.avem.stand.view.composables.table.TableScheme.Companion.named
+import kotlin.concurrent.thread
 
 object Idling : KSPADTest(
     abbr = "ХХ",
@@ -22,7 +25,7 @@ object Idling : KSPADTest(
             columns(
                 TestRow::c1 named "U, В",
                 TestRow::c2 named "I, А",
-                TestRow::c3 named "P, кВт",
+                TestRow::c3 named "P1, кВт",
                 TestRow::c4 named "cos ф, о.е.",
                 TestRow::c5 named "Время, с",
             )
@@ -72,14 +75,20 @@ object Idling : KSPADTest(
 
     private val powerRaw =
         Field(abs = true) { power.value = it.d * I_RATIO } pollBy with(PAV41) { this to model.P_REGISTER }
-    private val power = Field(id = "P1", numOfSymbols = 1) bindTo table1r1.c3
+    private val power = Field(id = "P1", numOfSymbols = 2) bindTo table1r1.c3
     private val cos =
-        Field(id = "Cos", numOfSymbols = 2) pollBy with(PAV41) { this to model.COS_REGISTER } bindTo table1r1.c4
+        Field(
+            id = "Cos",
+            numOfSymbols = 3,
+            abs = true
+        ) pollBy with(PAV41) { this to model.COS_REGISTER } bindTo table1r1.c4
 
     private val timePassed = Field(id = "Time2") bindTo table1r1.c5
 
-    private val tempShaftside: Field = Field(id = "Temp1", numOfSymbols = 1) pollBy with(PS81) { this to model.T_1 } bindTo table2r1.c1
-    private val tempFanside: Field = Field(id = "Temp2", numOfSymbols = 1) pollBy with(PS81) { this to model.T_2 } bindTo table2r1.c2
+    private val tempShaftside: Field =
+        Field(id = "Temp1", numOfSymbols = 1) pollBy with(PS81) { this to model.T_1 } bindTo table2r1.c1
+    private val tempFanside: Field =
+        Field(id = "Temp2", numOfSymbols = 1) pollBy with(PS81) { this to model.T_2 } bindTo table2r1.c2
 
     private val rpm: Field = Field(id = "Speed") pollBy with(PC71) { this to model.RPM } bindTo table2r1.c3
 
@@ -125,7 +134,7 @@ object Idling : KSPADTest(
         out1UFI,
     )
 
-    override val checkedDevices = listOf(PAV41, PS81, PC71)
+    override val checkedDevices = mutableListOf<IDeviceController>(PAV41, PS81, PC71)
 
     override val alertMessages = listOf("Подключите провода U, V, W к ОИ. Установите датчики")
 
@@ -140,7 +149,7 @@ object Idling : KSPADTest(
                 loadUZ91()
             },
             process = {
-                if (isRunning) while (rpm.d > 0) {
+                if (isRunning) while (rpm.d > 50) {
                     state = "Ожидание останова"
                     wait(1)
                 }
@@ -166,10 +175,32 @@ object Idling : KSPADTest(
         if (isRunning) UZ91.setVoltage(0.0)
         if (isRunning) UZ91.setObjectFCur(0.0)
         if (isRunning) UZ91.startObject()
-        wait(3)
+        if (isRunning) wait(3)
 
-        state = "Подъём напряжения до ${voltage.d.formatPoint()} В (контроль PAV41) по UZ91"
-        regulation(
+        if (isRunning) {
+            thread(isDaemon = true) {
+                if (isRunning) wait(5)
+                var countCause = 0
+                while (isRunning) {
+                    if (testItemCurrentMeas.d > 1.5) {
+                        if (testItemCurrentAMeas.d * 1.8 < testItemCurrentBMeas.d || testItemCurrentAMeas.d * 0.2 > testItemCurrentBMeas.d
+                            || testItemCurrentBMeas.d * 1.8 < testItemCurrentCMeas.d || testItemCurrentBMeas.d * 0.2 > testItemCurrentCMeas.d
+                            || testItemCurrentCMeas.d * 1.8 < testItemCurrentAMeas.d || testItemCurrentCMeas.d * 0.2 > testItemCurrentAMeas.d
+                        ) {
+                            countCause++
+                        } else {
+                            countCause = 0
+                        }
+                        if (countCause > 3) cause =
+                            "Асимметрия токов. A = ${testItemCurrentAMeas.d.af()}  B = ${testItemCurrentAMeas.d.af()}  C = ${testItemCurrentCMeas.d.af()}"
+                    }
+                    wait(2)
+                }
+            }
+        }
+
+        if (isRunning) state = "Подъём напряжения до ${voltage.d.formatPoint()} В (контроль PAV41) по UZ91"
+        if (isRunning) regulation(
             out1UFI,
             voltage.d,
             deltaMin = 1,
@@ -178,6 +209,6 @@ object Idling : KSPADTest(
             waitSec = .05
         ) { testItemVoltageMeas.d }
 
-        if (isRunning) state = "Напряжение установлено: $testItemVoltageMeas В"
+        if (isRunning) state = "Напряжение установлено"
     }
 }

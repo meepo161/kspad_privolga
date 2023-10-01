@@ -1,5 +1,6 @@
 package ru.avem.stand.tests.business
 
+import ru.avem.library.polling.IDeviceController
 import ru.avem.stand.io.DevicePoller.DD2
 import ru.avem.stand.io.DevicePoller.PA62
 import ru.avem.stand.io.DevicePoller.PV61
@@ -45,15 +46,15 @@ object DCWindingResistance : KSPADTest(
     private val testItemVoltage: Field = Field(abs = true) pollBy with(PV61) { this to model.U_TRMS }
     private val testItemCurrent: Field = Field(abs = true) pollBy with(PA62) { this to model.AMPERAGE }
 
-    private val R_UV: Field = Field(id = "Ruv", numOfSymbols = 2) bindTo table1r1.c1
-    private val R_VW: Field = Field(id = "Rvw", numOfSymbols = 2) bindTo table1r1.c2
-    private val R_WU: Field = Field(id = "Rwu", numOfSymbols = 2) bindTo table1r1.c3
+    private val R_UV: Field = Field(id = "Ruv", numOfSymbols = 4) bindTo table1r1.c1
+    private val R_VW: Field = Field(id = "Rvw", numOfSymbols = 4) bindTo table1r1.c2
+    private val R_WU: Field = Field(id = "Rwu", numOfSymbols = 4) bindTo table1r1.c3
 
-    private val R_U: Field = Field(id = "Ru", numOfSymbols = 2) bindTo table2r1.c1
-    private val R_V: Field = Field(id = "Rv", numOfSymbols = 2) bindTo table2r1.c2
-    private val R_W: Field = Field(id = "Rw", numOfSymbols = 2) bindTo table2r1.c3
+    private val R_U: Field = Field(id = "Ru", numOfSymbols = 4) bindTo table2r1.c1
+    private val R_V: Field = Field(id = "Rv", numOfSymbols = 4) bindTo table2r1.c2
+    private val R_W: Field = Field(id = "Rw", numOfSymbols = 4) bindTo table2r1.c3
 
-    private val delta: Field = Field(id = "D_R", numOfSymbols = 2) bindTo table3r1.c1
+    private val delta: Field = Field(id = "D_R", numOfSymbols = 4) bindTo table3r1.c1
 
     override val stateCell = table4r1.c1
 
@@ -71,7 +72,7 @@ object DCWindingResistance : KSPADTest(
         delta
     )
 
-    override val checkedDevices = listOf(PV61, PA62)
+    override val checkedDevices = mutableListOf<IDeviceController>(PV61, PA62)
 
     override val alertMessages = listOf("Подключите провода U, V, W к ОИ")
 

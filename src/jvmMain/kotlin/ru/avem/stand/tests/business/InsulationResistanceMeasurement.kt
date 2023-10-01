@@ -1,5 +1,6 @@
 package ru.avem.stand.tests.business
 
+import ru.avem.library.polling.IDeviceController
 import ru.avem.stand.formatPoint
 import ru.avem.stand.io.DevicePoller.DD2
 import ru.avem.stand.io.DevicePoller.PR65
@@ -40,7 +41,8 @@ object InsulationResistanceMeasurement : KSPADTest(
     private val r60: Field = Field(id = "R60", numOfSymbols = 2) bindTo table1r1.c2
     private val kABS: Field = Field(id = "KABS", numOfSymbols = 2) bindTo table1r1.c3
     private val measU: Field = Field(id = "U") bindTo table1r1.c4
-    private val temp: Field = Field(id = "T", numOfSymbols = 1) pollBy with(PS81) { this to model.T_1 } bindTo table1r1.c5
+    private val temp: Field =
+        Field(id = "T", numOfSymbols = 1) pollBy with(PS81) { this to model.T_1 } bindTo table1r1.c5
 
     private val status: Field = Field() pollBy with(PR65) { this to model.STATUS }
 
@@ -55,7 +57,7 @@ object InsulationResistanceMeasurement : KSPADTest(
         status,
     )
 
-    override val checkedDevices = listOf(PS81)
+    override val checkedDevices = mutableListOf<IDeviceController>(PS81)
 
     override val alertMessages =
         listOf("Подключите провод ВИУ (ХА1) к испытуемой точке, провод РЕ (ХА2) к точке относительно которой будет проходит проверка")
@@ -64,11 +66,26 @@ object InsulationResistanceMeasurement : KSPADTest(
 
     init {
         define(
-            initVariables = { specU = TIManager.testItem.meggerVoltage.toInt() },
-            assemblyCircuit = { if (isRunning) DD2.onMGR() },
-            process = { if (isRunning) measureR() }
+            initVariables = {
+                specU = TIManager.testItem.meggerVoltage.toInt()
+            },
+            assemblyCircuit = {
+                if (isRunning) DD2.onMGRDevice()
+                wait(2)
+                if (isRunning) DD2.offMGRDevice()
+                checkedDevices.add(PR65)
+                wait(2)
+                if (isRunning && PR65.isResponding) DD2.onMGR()
+            },
+            process = {
+                if (isRunning) measureR()
+            },
+            finish = {
+                checkedDevices.remove(PR65)
+            }
         )
     }
+
 
     private fun measureR() {
         state = "Измерение сопротивления"
@@ -87,6 +104,7 @@ object InsulationResistanceMeasurement : KSPADTest(
             if (status.i == 4) isNeedContinue = { false }
             state = "Измерение. Прошло ${it.toInt()} секунд"
         }
+        wait(2)
 
         PR65.getRegisterById(PR65.model.R15_MEAS).apply {
             PR65.readRegister(this)

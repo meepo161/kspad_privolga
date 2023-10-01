@@ -1,5 +1,6 @@
 package ru.avem.stand.tests.business
 
+import ru.avem.library.polling.IDeviceController
 import ru.avem.stand.io.DevicePoller.DD2
 import ru.avem.stand.io.DevicePoller.PA62
 import ru.avem.stand.io.DevicePoller.PV61
@@ -37,7 +38,7 @@ object DCWindingResistanceSensors : KSPADTest(
     private val testItemVoltage: Field = Field(abs = true) pollBy with(PV61) { this to model.U_TRMS }
     private val testItemCurrent: Field = Field(abs = true) pollBy with(PA62) { this to model.AMPERAGE }
 
-    private val R: Field = Field(id = "R", numOfSymbols = 2) bindTo table1r1.c1
+    private val R: Field = Field(id = "R", numOfSymbols = 4) bindTo table1r1.c1
 
     override val stateCell = table2r1.c1
 
@@ -47,7 +48,7 @@ object DCWindingResistanceSensors : KSPADTest(
         R,
     )
 
-    override val checkedDevices = listOf(PV61, PA62)
+    override val checkedDevices = mutableListOf<IDeviceController>(PV61, PA62)
 
     override val alertMessages = listOf("Подключите провода U и V к ОИ")
 

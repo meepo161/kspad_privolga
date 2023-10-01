@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.nio.file.Paths
 
 plugins {
     kotlin("multiplatform")
@@ -61,13 +62,18 @@ kotlin {
 }
 
 compose.desktop {
+    var version = ""
+    val file = Paths.get("version.txt")
+    file.toFile().writeText((file.toFile().readText().toInt() + 1).toString())
+    version = "1.0." + file.toFile().readText()
     application {
         mainClass = "ru.avem.stand.EntryPointKt"
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "kspad_privolga"
-            packageVersion = "1.0.0"
+            packageVersion = version
             includeAllModules = true
+//            appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
         }
     }
 }

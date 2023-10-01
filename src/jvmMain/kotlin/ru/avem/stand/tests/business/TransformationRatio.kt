@@ -1,5 +1,6 @@
 package ru.avem.stand.tests.business
 
+import ru.avem.library.polling.IDeviceController
 import ru.avem.stand.formatPoint
 import ru.avem.stand.io.DevicePoller.DD2
 import ru.avem.stand.io.DevicePoller.PAV41
@@ -55,24 +56,24 @@ object TransformationRatio : KSPADTest(
         AFTER
     }
 
-    var stage = Stage.BEFORE
+    private var stage = Stage.BEFORE
 
     private val testItemVoltageABMeas: Field = Field {
         when (stage) {
             Stage.BEFORE -> testItemVoltageABMeasStat.value = it.d
-            Stage.AFTER -> testItemVoltageABMeasRot.value = it.d
+            Stage.AFTER -> testItemVoltageABMeasRot.value = if (it.d < 10.0) 0.0 else it.d
         }
     } pollBy with(PAV41) { this to model.U_AB_REGISTER }
     private val testItemVoltageBCMeas: Field = Field {
         when (stage) {
             Stage.BEFORE -> testItemVoltageBCMeasStat.value = it.d
-            Stage.AFTER -> testItemVoltageBCMeasRot.value = it.d
+            Stage.AFTER -> testItemVoltageBCMeasRot.value = if (it.d < 10.0) 0.0 else it.d
         }
     } pollBy with(PAV41) { this to model.U_BC_REGISTER }
     private val testItemVoltageCAMeas: Field = Field {
         when (stage) {
             Stage.BEFORE -> testItemVoltageCAMeasStat.value = it.d
-            Stage.AFTER -> testItemVoltageCAMeasRot.value = it.d
+            Stage.AFTER -> testItemVoltageCAMeasRot.value = if (it.d < 10.0) 0.0 else it.d
         }
     } pollBy with(PAV41) { this to model.U_CA_REGISTER }
 
@@ -104,7 +105,7 @@ object TransformationRatio : KSPADTest(
     } bindTo table2r1.c3
     private val testItemVoltageMeasRot: Field = Field(id = "Usr2", numOfSymbols = 1) bindTo table2r1.c4
 
-    private val ktr: Field = Field(id = "Ktr", numOfSymbols = 1) bindTo table3r1.c1
+    private val ktr: Field = Field(id = "Ktr", numOfSymbols = 2) bindTo table3r1.c1
 
     private val rpm: Field = Field(id = "Speed") pollBy with(PC71) { this to model.RPM }
 
@@ -132,7 +133,7 @@ object TransformationRatio : KSPADTest(
         out1UFI,
     )
 
-    override val checkedDevices = listOf(PAV41, PC71)
+    override val checkedDevices = mutableListOf<IDeviceController>(PAV41, PC71)
 
     override val alertMessages = listOf("Подключите провода U, V, W к статору ОИ, провода U2, V2, W2 к ротору ОИ")
 
@@ -146,20 +147,22 @@ object TransformationRatio : KSPADTest(
                 loadUZ91()
             },
             process = {
-                if (isRunning) while (rpm.d > 0) {
+                if (isRunning) while (rpm.d > 50) {
                     state = "Ожидание останова"
                     wait(1)
                 }
 
                 if (isRunning) setVoltageByUZ91()
-                wait(3)
+                if (isRunning) wait(5)
                 stage = Stage.AFTER
                 if (isRunning) DD2.switchKTR()
-                wait(3)
-                if (isRunning) ktr.value = testItemVoltageMeasStat.d / testItemVoltageMeasRot.d
+                if (isRunning) wait(5)
+                val ktrRaw = testItemVoltageMeasStat.d / testItemVoltageMeasRot.d
+                if (isRunning) if (ktrRaw <= 0 || ktrRaw > 1000) ktr.stringValue = "∞" else ktr.value = ktrRaw
             },
             finish = {
                 UZ91.offFreewheeling(out1UFI)
+                if (ktr.stringValue == "∞") cause = "Обмотка ротора не подключена"
             }
         )
     }
@@ -170,18 +173,18 @@ object TransformationRatio : KSPADTest(
         if (isRunning) UZ91.setVoltage(0.0)
         if (isRunning) UZ91.setObjectFCur(0.0)
         if (isRunning) UZ91.startObject()
-        wait(3)
+        if (isRunning) wait(3)
 
-        state = "Подъём напряжения до ${voltage.d.formatPoint()} В (контроль PAV41) по UZ91"
-        regulation(
+        if (isRunning) state = "Подъём напряжения до ${voltage.d.formatPoint()} В (контроль PAV41) по UZ91"
+        if (isRunning) regulation(
             out1UFI,
             voltage.d,
             deltaMin = 1,
             deltaMax = 3,
-            influenceStep = .5,
+            influenceStep = 0.6,
             waitSec = .05
         ) { testItemVoltageMeasStat.d }
 
-        if (isRunning) state = "Напряжение установлено: $testItemVoltageMeasStat В"
+        if (isRunning) state = "Напряжение установлено"
     }
 }

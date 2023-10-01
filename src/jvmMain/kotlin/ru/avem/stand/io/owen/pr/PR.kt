@@ -187,9 +187,6 @@ class PR(
     }
 
     fun onMGR() {
-        onMGRDevice()
-        sleep(5000)
-        offMGRDevice()
         onOutput01To16(11) // шунтировать GB30 (резистора в блоке питания)
         sleep(100)
         onOutput01To16(11) // шунтировать GB30 (резистора в блоке питания)
