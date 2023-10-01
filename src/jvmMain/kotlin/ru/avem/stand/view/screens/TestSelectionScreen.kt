@@ -18,7 +18,7 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import ru.avem.stand.testitem.TIManager
-import ru.avem.stand.tests.Lists
+import ru.avem.stand.tests.Tests
 import ru.avem.stand.tests.Test
 import ru.avem.stand.view.composables.EnabledTextButton
 import ru.avem.stand.view.composables.MotorType
@@ -60,7 +60,7 @@ class TestSelectionScreen : Screen {
             )
             Text(text = "Выберите одно или несколько испытаний:", style = MaterialTheme.typography.h1)
             LazyColumn {
-                Lists.getTestsForDisplay(MotorType.valueOfText(TIManager.testItem.motor)).forEachIndexed { idx, test ->
+                Tests.getTestsForDisplay(MotorType.valueOfText(TIManager.testItem.motor)).forEachIndexed { idx, test ->
                     item {
                         Row(
                             Modifier.clickable {

@@ -17,7 +17,7 @@ import ru.avem.stand.view.composables.table.tables
 
 object DCWindingResistanceSensors : KSPADTest(
     abbr = "ИКАС ДТЧК",
-    tag = "IKAST",
+    tag = "TIKAS",
     name = "Измерение сопротивления встроенных термодатчиков при постоянном токе в практически холодном состоянии",
     tables(
         table1(

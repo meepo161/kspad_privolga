@@ -17,7 +17,7 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import ru.avem.stand.db.DBManager
 import ru.avem.stand.protocol.ProtocolManager
 import ru.avem.stand.testitem.TIManager
-import ru.avem.stand.tests.Lists.getTestsForDisplay
+import ru.avem.stand.tests.Tests.getTestsForDisplay
 import ru.avem.stand.tests.Test
 import ru.avem.stand.view.composables.EnabledTextButton
 import ru.avem.stand.view.composables.MotorType

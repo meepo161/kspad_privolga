@@ -17,7 +17,7 @@ import kotlin.concurrent.thread
 
 object WindingInsulationTestSensors : KSPADTest(
     abbr = "ВИУ ДТЧК",
-    tag = "VIUT",
+    tag = "TVIU",
     name = "Испытание электрической прочности изоляции встроенных термодатчиков относительно корпуса и между обмотками",
     tables(
         table1(

@@ -18,11 +18,14 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import kotlinx.coroutines.launch
 import ru.avem.stand.db.entities.Protocol
+import ru.avem.stand.db.entities.ProtocolField
 import ru.avem.stand.protocol.ProtocolManager
+import ru.avem.stand.tests.Tests
 import ru.avem.stand.view.composables.ComboBox
 import ru.avem.stand.view.composables.EnabledTextButton
 import ru.avem.stand.view.composables.ScrollableLazyColumn
 import java.lang.Thread.sleep
+import java.text.SimpleDateFormat
 import kotlin.concurrent.thread
 
 class ProtocolsScreen : Screen {
@@ -37,10 +40,7 @@ class ProtocolsScreen : Screen {
 
         var filteredProtocols by remember { mutableStateOf(emptyList<Protocol>()) }
 
-        val protocolIdsForSaving = remember { mutableStateMapOf<Int, MutableState<Boolean>>() }
-
-        val mapProtocols = remember { mutableStateMapOf<MutableMap<Int, String>, MutableState<Boolean>>() }
-        var selectedProtocolField = 0
+        var groupedTestItems = mutableMapOf<String, MutableList<LocalProtocolItem>>()
 
         if (ProtocolManager.toastText.value.isNotEmpty()) {
             thread {
@@ -58,49 +58,33 @@ class ProtocolsScreen : Screen {
             }
         }
 
-        LaunchedEffect(allProtocols.size)
-        {
+        LaunchedEffect(allProtocols.size) {
             launch {
                 allProtocols = ProtocolManager.all
 
                 serials = allProtocols.groupBy { it.serial }.keys.toList()
                 selectedSerial.value = serials.firstOrNull()
+
             }
         }
 
-        LaunchedEffect(selectedSerial.value)
-        {
-            launch { filteredProtocols = allProtocols.filter { it.serial == selectedSerial.value } }
+        LaunchedEffect(selectedSerial.value) {
+            launch {
+                filteredProtocols = allProtocols.filter { it.serial == selectedSerial.value }
+            }
         }
 
         Column(
             modifier = Modifier.fillMaxSize().padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
-        )
-        {
+        ) {
             Text("Выберите заводской номер для просмотра:")
             ComboBox(modifier = Modifier.fillMaxWidth(),
                 selectedItem = selectedSerial,
                 items = serials,
                 onSelect = { serial ->
                     selectedSerial.value = serial
-                    filteredProtocols
-                        .flatMap { it.filledFields }
-                        .filter { it.key == "TEST_NAME" }
-                        .map { it.value }
-                        .toSet()
-                        .forEachIndexed { groupIdx, groupName ->
-                            filteredProtocols.flatMap { it.filledFields }.groupBy { it.protocolId }
-                                .filter { it.value.map { it.value }.contains(groupName) }
-                                .forEach { (protocolId, fields) ->
-                                    mapProtocols.getOrPut(mutableMapOf(Pair(protocolId, groupName))) {
-                                        mutableStateOf(
-                                            false
-                                        )
-                                    }
-                                }
-                        }
                 })
             if (filteredProtocols.isEmpty()) {
                 CircularProgressIndicator()
@@ -109,44 +93,91 @@ class ProtocolsScreen : Screen {
                     modifier = Modifier.padding(top = 8.dp).height(800.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    item {
-                        filteredProtocols
-                            .flatMap { it.filledFields }
-                            .filter { it.key == "TEST_NAME" }
-                            .map { it.value }
-                            .toSet()
-                            .forEachIndexed { groupIdx, groupName ->
-                                Text(text = groupName, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    val groupedProtocolFields = mutableMapOf<String, MutableList<ProtocolField>>()
+                    val tags = Tests.getAllTests().map {
+                        it.tag
+                    }
 
-                                val idToFields = filteredProtocols.flatMap { it.filledFields }.groupBy { it.protocolId }
-                                idToFields.filter { it.value.map { it.value }.contains(groupName) }
-                                    .forEach { (protocolId, fields) ->
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp)
-                                                .clickable {
-                                                    mapProtocols.getOrPut(
-                                                        mutableMapOf(Pair(protocolId, groupName))
-                                                    ) { mutableStateOf(false) }
-                                                    val mutableState =
-                                                        mapProtocols.get(mutableMapOf(Pair(protocolId, groupName)))
-                                                    mutableState!!.value = !mutableState.value
-                                                },
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Start
-                                        ) {
-                                            Checkbox(
-                                                modifier = Modifier.scale(2f).height(48.dp).width(48.dp),
-                                                checked = mapProtocols.getOrPut(
-                                                    mutableMapOf(Pair(protocolId, groupName))
-                                                ) { mutableStateOf(false) }.value,
-                                                onCheckedChange = null
-                                            )
-                                            Text(text = "${fields.first { it.key == "TIME" }.value} ", fontSize = 28.sp)
-                                            Text(text = fields.first { it.key == "DATE" }.value, fontSize = 28.sp)
-                                        }
-                                    }
-                                Spacer(modifier = Modifier.height(16.dp))
+                    filteredProtocols.flatMap { it.filledFields }.forEach { field ->
+                        tags.forEach { tag ->
+                            if (field.key.startsWith(tag)) {
+                                groupedProtocolFields.getOrPut(tag) { mutableListOf() }.add(field)
                             }
+                        }
+                    }
+
+                    groupedProtocolFields.forEach { tag, protocolFields ->
+                        var listProtocolFields: MutableList<MutableList<ProtocolField>>? = null
+                        var idx = -1
+                        protocolFields.forEach {
+                            if (it.key.contains("Status")) {
+                                idx++
+                                if (listProtocolFields == null) {
+                                    listProtocolFields = mutableListOf(mutableListOf<ProtocolField>())
+                                } else {
+                                    listProtocolFields!!.add(mutableListOf())
+                                }
+                            }
+                            listProtocolFields!!.get(idx).add(it)
+                        }
+                        listProtocolFields!!.forEach { local ->
+                            groupedTestItems.getOrPut(Tests.getTestNameByTag(tag)) {
+                                mutableListOf()
+                            }.add(LocalProtocolItem(tag, local))
+                            var listTimes = mutableListOf<Long>()
+                            groupedTestItems.forEach { testName, testItems ->
+                                testItems.forEach { testItem ->
+                                    listTimes.add(SimpleDateFormat("DD.MM.YYYY-HH:mm").parse("${testItem.date}-${testItem.time}").time)
+                                    if (SimpleDateFormat("DD.MM.YYYY-HH:mm").parse("${testItem.date}-${testItem.time}").time == listTimes.max()) {
+                                        testItems.forEach {
+                                            it.isChecked.value = false
+                                        }
+                                        testItem.isChecked.value = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    groupedTestItems.forEach { t, u ->
+                        u.forEach {
+                            println(it.protocolFields.map {
+                                it.value
+                            })
+                        }
+                    }
+
+                    groupedTestItems.forEach { testName, testItems ->
+                        item {
+                            Text(text = testName, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                            testItems.forEach { testItem ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp)
+                                        .clickable {
+                                            testItems.forEach {
+                                                it.isChecked.value = false
+                                            }
+                                            testItem.isChecked.value = !testItem.isChecked.value
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Start
+                                ) {
+                                    Checkbox(
+                                        modifier = Modifier.scale(2f).height(48.dp).width(48.dp),
+                                        checked = testItem.isChecked.value,
+                                        onCheckedChange = null
+                                    )
+                                    Text(text = testItem.date, fontSize = 28.sp)
+                                    Text(
+                                        text = testItem.time,
+                                        fontSize = 28.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                     }
                 }
             }
@@ -155,16 +186,17 @@ class ProtocolsScreen : Screen {
                     navigator.popUntilRoot()
                 }
                 EnabledTextButton("Открыть") {
-                    var mutableList = mutableListOf<Int>()
-                    mapProtocols.forEach { (t, u) ->
-                        t.forEach { (t2, u2) ->
-                            if (u.value) mutableList.add(t2)
-                        }
-                    }
-                    mutableList.forEach { println(it) }
-                    ProtocolManager.open(mutableList)
+                    ProtocolManager.open(groupedTestItems.values.flatMap { it.filter { it.isChecked.value } }
+                        .flatMap { it.protocolFields })
                 }
             }
         }
     }
+}
+
+class LocalProtocolItem(tag: String, val protocolFields: List<ProtocolField>) {
+    val testName = Tests.getTestNameByTag(tag)
+    val date = protocolFields.first { it.key.contains("Date") }.value
+    val time = protocolFields.first { it.key.contains("Time") }.value
+    val isChecked = mutableStateOf(false)
 }

@@ -20,7 +20,7 @@ import ru.avem.stand.db.DBManager
 import ru.avem.stand.io.DevicePoller
 import ru.avem.stand.limit
 import ru.avem.stand.ms
-import ru.avem.stand.tests.Lists
+import ru.avem.stand.tests.Tests
 import ru.avem.stand.view.screens.main.MainMenuScreen
 
 class InitializationScreen : Screen {
@@ -33,7 +33,7 @@ class InitializationScreen : Screen {
                 val initMS = ms()
                 DevicePoller
                 DBManager
-                Lists
+                Tests
                 delay(limit(1, 1000 - (ms() - initMS), 1000))
                 navigator.replace(MainMenuScreen())
             }

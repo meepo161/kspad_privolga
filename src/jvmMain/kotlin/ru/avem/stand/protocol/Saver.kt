@@ -3,6 +3,7 @@ package ru.avem.stand.protocol
 import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import ru.avem.stand.db.entities.Protocol
+import ru.avem.stand.db.entities.ProtocolField
 import ru.avem.stand.formatPoint
 import ru.avem.stand.testitem.TIManager
 import java.io.ByteArrayOutputStream
@@ -16,7 +17,7 @@ import java.text.SimpleDateFormat
 
 const val metavariableParts = "\${}"
 
-fun saveProtocolsAsWorkbook(protocols: List<Protocol>, protocolPathString: String, targetPath: File? = null): Path {
+fun saveProtocolsAsWorkbook(protocolFields: List<ProtocolField>, protocolPathString: String, targetPath: File? = null): Path {
     val mills = System.currentTimeMillis()
     val protocolDir = Files.createDirectories(Paths.get("protocols/${SimpleDateFormat("yyyyMMdd").format(mills)}"))
     val resultFile = targetPath ?: Paths.get(protocolDir.toString(), "$mills.xlsx").toFile()
@@ -25,12 +26,7 @@ fun saveProtocolsAsWorkbook(protocols: List<Protocol>, protocolPathString: Strin
 
     data class LocalProtocolFields(val key: String, var value: String)
 
-    val fields = protocols
-        .flatMap { protocol -> protocol.filledFields.map { field -> field to protocol.toMills() } }
-        .groupBy { it.first.key }
-        .map { it.value }
-        .map { pfsToDate -> pfsToDate.first { pfToDate -> pfToDate.second == pfsToDate.maxOf { it.second } }.first }
-        .map { LocalProtocolFields(it.key, it.value) }
+    val fields = protocolFields.map { LocalProtocolFields(it.key, it.value) }
         .toMutableList().also {
             it.addAll(
                 listOf(

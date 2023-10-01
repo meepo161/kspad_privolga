@@ -216,7 +216,6 @@ abstract class Test(
 
         ProtocolManager.saveField("${tag}Status" to resultForProtocol)
         model.setFinishedState()
-
     }
 
     protected open fun storeData() {
@@ -228,7 +227,6 @@ abstract class Test(
     }
 
     private fun saveDataForProtocol() {
-        ProtocolManager.saveField("TEST_NAME" to name)
         ProtocolManager.saveField("${tag}Operator" to "Н / У")
 
         ProtocolManager.saveField("${tag}Date" to SimpleDateFormat("dd.MM.yyyy").format(System.currentTimeMillis()))

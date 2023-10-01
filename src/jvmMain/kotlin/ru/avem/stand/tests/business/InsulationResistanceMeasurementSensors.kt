@@ -19,7 +19,7 @@ import ru.avem.stand.view.composables.table.tables
 
 object InsulationResistanceMeasurementSensors : KSPADTest(
     abbr = "МГР ДТЧК",
-    tag = "MGRT",
+    tag = "TMGR",
     name = "Измерение сопротивления изоляции встроенных термодатчиков относительно корпуса и между обмотками (фазами)",
     tables(
         table1(

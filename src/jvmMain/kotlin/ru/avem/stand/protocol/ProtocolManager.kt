@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateOf
 import ru.avem.stand.db.DBManager
 import ru.avem.stand.db.entities.Protocol
 import ru.avem.stand.db.entities.ProtocolDurable
+import ru.avem.stand.db.entities.ProtocolField
 import ru.avem.stand.testitem.TIManager
 import java.awt.Desktop
 
@@ -15,15 +16,11 @@ object ProtocolManager {
 
     var toastText = mutableStateOf("")
 
-    fun open(ids: Collection<Int>) {
-        val protocols = all.filter { it.myId in ids }
-        protocols.forEach {
-            println(it.time)
-        }
+    fun open(protocolFields: List<ProtocolField>) {
 
-        if (protocols.isNotEmpty()) {
+        if (protocolFields.isNotEmpty()) {
             try {
-                save(protocols).let {
+                save(protocolFields).let {
                     try {
                         Desktop.getDesktop().open(it.toFile())
                     } catch (e: Exception) {
@@ -44,7 +41,7 @@ object ProtocolManager {
         }
     }
 
-    private fun save(protocols: List<Protocol>) = saveProtocolsAsWorkbook(protocols, "protocol_template.xlsx")
+    private fun save(protocolFields: List<ProtocolField>) = saveProtocolsAsWorkbook(protocolFields, "protocol_template.xlsx")
         .apply { infoNotification(text = "Протокол сохранён по пути $this") }
 
     private fun errorNotification(title: String = "Ошибка", text: String = "") {
