@@ -124,8 +124,8 @@ class ProtocolsScreen : Screen {
                             groupedTestItems.getOrPut(Tests.getTestNameByTag(tag)) {
                                 mutableListOf()
                             }.add(LocalProtocolItem(tag, local))
-                            var listTimes = mutableListOf<Long>()
                             groupedTestItems.forEach { testName, testItems ->
+                                var listTimes = mutableListOf<Long>()
                                 testItems.forEach { testItem ->
                                     listTimes.add(SimpleDateFormat("DD.MM.YYYY-HH:mm").parse("${testItem.date}-${testItem.time}").time)
                                     if (SimpleDateFormat("DD.MM.YYYY-HH:mm").parse("${testItem.date}-${testItem.time}").time == listTimes.max()) {
@@ -167,11 +167,21 @@ class ProtocolsScreen : Screen {
                                         checked = testItem.isChecked.value,
                                         onCheckedChange = null
                                     )
-                                    Text(text = testItem.date, fontSize = 28.sp)
                                     Text(
-                                        text = testItem.time,
-                                        fontSize = 28.sp,
-                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                        text = "Дата: ${testItem.date}", fontSize = 28.sp,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                    Text(
+                                        text = "Время: ${testItem.time}", fontSize = 28.sp,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                    Text(
+                                        text = "Результат: ${testItem.status}", fontSize = 28.sp,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                    Text(
+                                        text = "Оператор: ${testItem.operator}", fontSize = 28.sp,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
                                     )
 
                                 }
@@ -198,5 +208,7 @@ class LocalProtocolItem(tag: String, val protocolFields: List<ProtocolField>) {
     val testName = Tests.getTestNameByTag(tag)
     val date = protocolFields.first { it.key.contains("Date") }.value
     val time = protocolFields.first { it.key.contains("Time") }.value
+    val operator = protocolFields.first { it.key.contains("Operator") }.value
+    val status = protocolFields.first { it.key.contains("Status") }.value
     val isChecked = mutableStateOf(false)
 }
