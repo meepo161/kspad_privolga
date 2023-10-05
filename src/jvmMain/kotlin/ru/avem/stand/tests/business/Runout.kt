@@ -77,12 +77,15 @@ object Runout : KSPADTest(
     private val powerRaw =
         Field(abs = true) { power.value = it.d * I_RATIO } pollBy with(PAV41) { this to model.P_REGISTER }
     private val power = Field(id = "P1", numOfSymbols = 2) bindTo table1r1.c3
-    private val cos = Field(id = "Cos", numOfSymbols = 3) pollBy with(PAV41) { this to model.COS_REGISTER } bindTo table1r1.c4
+    private val cos =
+        Field(id = "Cos", numOfSymbols = 3) pollBy with(PAV41) { this to model.COS_REGISTER } bindTo table1r1.c4
 
     private val timePassed = Field(id = "Time2") bindTo table1r1.c5
 
-    private val tempShaftside: Field = Field(id = "Temp1", numOfSymbols = 1) pollBy with(PS81) { this to model.T_1 } bindTo table2r1.c1
-    private val tempFanside: Field = Field(id = "Temp2", numOfSymbols = 1) pollBy with(PS81) { this to model.T_2 } bindTo table2r1.c2
+    private val tempShaftside: Field =
+        Field(id = "Temp1", numOfSymbols = 1) pollBy with(PS81) { this to model.T_1 } bindTo table2r1.c1
+    private val tempFanside: Field =
+        Field(id = "Temp2", numOfSymbols = 1) pollBy with(PS81) { this to model.T_2 } bindTo table2r1.c2
 
     private val rpm: Field = Field(id = "Speed") pollBy with(PC71) { this to model.RPM } bindTo table2r1.c3
 
@@ -178,8 +181,8 @@ object Runout : KSPADTest(
         if (isRunning) UZ91.setVoltage(0.0)
         if (isRunning) UZ91.setObjectFCur(0.0)
         if (isRunning) UZ91.startObject()
-        if (isRunning)  wait(3)
-        
+        if (isRunning) wait(3)
+
         if (isRunning) {
             thread(isDaemon = true) {
                 if (isRunning) wait(5)

@@ -124,8 +124,8 @@ class ProtocolsScreen : Screen {
                             groupedTestItems.getOrPut(Tests.getTestNameByTag(tag)) {
                                 mutableListOf()
                             }.add(LocalProtocolItem(tag, local))
-                            groupedTestItems.forEach { testName, testItems ->
-                                var listTimes = mutableListOf<Long>()
+                            groupedTestItems.forEach { (testName, testItems) ->
+                                val listTimes = mutableListOf<Long>()
                                 testItems.forEach { testItem ->
                                     listTimes.add(SimpleDateFormat("DD.MM.YYYY-HH:mm").parse("${testItem.date}-${testItem.time}").time)
                                     if (SimpleDateFormat("DD.MM.YYYY-HH:mm").parse("${testItem.date}-${testItem.time}").time == listTimes.max()) {

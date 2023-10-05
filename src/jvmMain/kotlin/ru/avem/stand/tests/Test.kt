@@ -227,6 +227,7 @@ abstract class Test(
     }
 
     private fun saveDataForProtocol() {
+        ProtocolManager.saveField("${tag}Status" to "Не проводился")
         ProtocolManager.saveField("${tag}Operator" to "Н / У")
 
         ProtocolManager.saveField("${tag}Date" to SimpleDateFormat("dd.MM.yyyy").format(System.currentTimeMillis()))
